@@ -7,6 +7,7 @@ import Button from '@/components/Button/Button';
 import './cars.css';
 import EmptyState from '@/components/EmptyState/EmptyState';
 import ConfirmDelete from '@/components/ConfirmDelete/ConfirmDelete';
+import { toast } from 'react-toastify';
 
 export default function CarsPage() {
   const [cars, setCars] = useState<api.Car[]>([]);
@@ -26,21 +27,39 @@ export default function CarsPage() {
 
   /* ────────────── CRUD helpers ────────────── */
   const save = async (car: api.Car) => {
-    if (editing) {
-      const updated = cars.map(c => (c.plate === editing.plate ? car : c));
-      setCars(updated);
-    } else {
-      setCars([...cars, car]);
-    }
+    try {
+      let updatedCar: api.Car;
 
-    setEditing(null);
-    setShowNew(false);
+      if (editing) {
+        updatedCar = await api.update(editing.plate, car);
+        setCars(prev => prev.map(c => (c.plate === editing.plate ? updatedCar : c)));
+        toast.success(`Vehículo ${updatedCar.plate} actualizado.`);
+      } else {
+        updatedCar = await api.create(car);
+        setCars(prev => [...prev, updatedCar]);
+        toast.success(`Vehículo ${updatedCar.plate} creado.`);
+      }
+    } catch (error) {
+      toast.error('Hubo un error al guardar el vehículo. Intenta nuevamente.');
+      console.error('Error guardando vehículo:', error);
+    } finally {
+      setEditing(null);
+      setShowNew(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (plateToDelete) {
-      setCars(cars.filter(c => c.plate !== plateToDelete));
-      setPlateToDelete(null);
+      try {
+        await api.remove(plateToDelete);
+        setCars(cars.filter(c => c.plate !== plateToDelete));
+        toast.success(`Vehículo ${plateToDelete} eliminado correctamente.`);
+      } catch (error) {
+        console.error("Error eliminando el vehículo:", error);
+        toast.error("No se pudo eliminar el vehículo. Intenta nuevamente.");
+      } finally {
+        setPlateToDelete(null);
+      }
     }
   };
 
